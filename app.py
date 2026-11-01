@@ -1,9 +1,17 @@
 import streamlit as st
+import pandas as pd
 
-from modules.data_source import (
-    load_master_data,
-    get_sync_time
+uploaded_file = st.file_uploader(
+    "Upload Master Data",
+    type=["xlsx"]
 )
+
+if uploaded_file:
+    df = pd.read_excel(uploaded_file)
+
+    st.success("Master Data berhasil dibaca")
+    st.write(f"Jumlah baris: {len(df)}")
+    st.dataframe(df.head())
 
 st.set_page_config(
     page_title="TCU Area Performance",
