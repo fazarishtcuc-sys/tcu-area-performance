@@ -470,22 +470,26 @@ else:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 # =========================================================
-# TOP 3 RANKING PERFORMANCE TRAINING SUPPORT
+# 3 TAB RANKING PERFORMANCE TRAINING SUPPORT
 # =========================================================
 
 st.divider()
 st.subheader("🏆 Ranking Performance Training Support")
 
+tab_nps, tab_ubpp, tab_lim1 = st.tabs([
+    "🏆 Ranking NPS",
+    "🏆 Ranking UBPP",
+    "🏆 Ranking Completion Rate LIM 1"
+])
+
 ranking_metrics = {
-    "Peringkat NPS Tertinggi": "Rata-rata NPS",
-    "Peringkat UBPP Penyelenggaraan Tertinggi": "Rata-rata UBPP Penyelenggaraan",
-    "Peringkat Completion Rate LIM 1 Tertinggi": "Rata-rata % Completion Rate LIM 1",
+    "NPS": "Rata-rata NPS",
+    "UBPP": "Rata-rata UBPP Penyelenggaraan",
+    "LIM1": "Rata-rata % Completion Rate LIM 1"
 }
 
-for title, metric_col in ranking_metrics.items():
 
-    st.markdown(f"### {title}")
-
+def tampilkan_ranking(metric_col, judul):
     ranking_df = rekap_ts[
         ["Training Support", "Jumlah Event", metric_col]
     ].copy()
@@ -497,6 +501,10 @@ for title, metric_col in ranking_metrics.items():
         ascending=False
     ).reset_index(drop=True)
 
+    if ranking_df.empty:
+        st.info("Belum ada data untuk indikator ini.")
+        return
+
     ranking_df.insert(
         0,
         "Peringkat",
@@ -506,11 +514,29 @@ for title, metric_col in ranking_metrics.items():
         ).astype(int)
     )
 
-    if ranking_df.empty:
-        st.info("Belum ada data untuk indikator ini.")
-    else:
-        st.dataframe(
-            ranking_df,
-            use_container_width=True,
-            hide_index=True
-        )
+    st.markdown(f"### {judul}")
+
+    st.dataframe(
+        ranking_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+with tab_nps:
+    tampilkan_ranking(
+        ranking_metrics["NPS"],
+        "Peringkat NPS Tertinggi"
+    )
+
+with tab_ubpp:
+    tampilkan_ranking(
+        ranking_metrics["UBPP"],
+        "Peringkat UBPP Penyelenggaraan Tertinggi"
+    )
+
+with tab_lim1:
+    tampilkan_ranking(
+        ranking_metrics["LIM1"],
+        "Peringkat Completion Rate LIM 1 Tertinggi"
+    )
