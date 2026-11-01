@@ -327,3 +327,146 @@ else:
     st.info(
         "Silakan upload file Master Data Excel melalui menu Data Control."
     )
+
+# =========================================================
+# REKAP RATA-RATA HASIL PER TRAINING SUPPORT
+# =========================================================
+
+st.subheader("Rekap Hasil per Training Support")
+
+# Kolom sumber dan nama indikator pada dashboard
+metric_columns = {
+    "Rata-rata NPS": "lim 1 Net Promote Score",
+    "Rata-rata UBPP Penyelenggaraan": "Lim 1 UBPP Penyelenggaraan",
+    "Rata-rata % Completion Rate LIM 1": "Completion Rate Lim 1",
+    "Rata-rata % Completion Rate Pretest": "Lim 2 Completion Rate Pre Test",
+    "Rata-rata % Completion Rate Postest": "Lim 2 Completion Rate Post Test",
+    "Rata-rata % Completion Rate Learner After": "Lim 3 Completion Learner After",
+    "Rata-rata % Completion Rate SPV After": "Lim 3 Completion Supervisor After",
+}
+
+required_columns = ["Event ID", "Training Support"] + list(metric_columns.values())
+
+missing_columns = [
+    col for col in required_columns
+    if col not in df_master.columns
+]
+
+if missing_columns:
+    st.error(
+        "Kolom berikut tidak ditemukan dalam Master Data: "
+        + ", ".join(missing_columns)
+    )
+else:
+    # Ambil data dari Master Data yang sudah difilter periode
+    df_rekap_ts = df_master[required_columns].copy()
+
+    # Pisahkan beberapa nama TS dalam satu sel
+    df_rekap_ts["Training Support"] = (
+        df_rekap_ts["Training Support"]
+        .fillna("")
+        .astype(str)
+        .str.split(r"[,;\n]+", regex=True)
+    )
+
+    df_rekap_ts = df_rekap_ts.explode("Training Support")
+
+    df_rekap_ts["Training Support"] = (
+        df_rekap_ts["Training Support"].astype(str).str.strip()
+    )
+
+    # Hapus nama TS kosong
+    df_rekap_ts = df_rekap_ts[
+        df_rekap_ts["Training Support"].ne("")
+    ].copy()
+
+    # Samakan nama TS yang berbeda kapitalisasi
+    # Contoh: Yetty Anggraini dan Yetty anggraini
+    df_rekap_ts["_TS_KEY"] = (
+        df_rekap_ts["Training Support"].str.casefold()
+    )
+
+    # Satu event hanya dihitung satu kali untuk setiap TS
+    df_rekap_ts = df_rekap_ts.drop_duplicates(
+        subset=["Event ID", "_TS_KEY"]
+    )
+
+    # Konversi indikator menjadi angka
+    for col in metric_columns.values():
+        df_rekap_ts[col] = pd.to_numeric(
+            df_rekap_ts[col], errors="coerce"
+        )
+
+    # Nama TS untuk tampilan
+    nama_ts = (
+        df_rekap_ts.groupby("_TS_KEY")["Training Support"]
+        .first()
+        .to_dict()
+    )
+
+    # Hitung rata-rata masing-masing indikator
+    rekap_ts = (
+        df_rekap_ts
+        .groupby("_TS_KEY")
+        .agg(
+            **{
+                nama: (kolom, "mean")
+                for nama, kolom in metric_columns.items()
+            },
+            **{
+                "Jumlah Event": ("Event ID", "nunique")
+            }
+        )
+        .reset_index()
+    )
+
+    rekap_ts["Training Support"] = (
+        rekap_ts["_TS_KEY"].map(nama_ts)
+    )
+
+    # Susunan kolom dashboard
+    output_columns = [
+        "Training Support",
+        "Jumlah Event",
+        *metric_columns.keys()
+    ]
+
+    rekap_ts = rekap_ts[output_columns]
+
+    # Urutkan berdasarkan nama TS
+    rekap_ts = rekap_ts.sort_values(
+        "Training Support"
+    ).reset_index(drop=True)
+
+    # Tampilkan tabel
+    st.dataframe(
+        rekap_ts,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            col: st.column_config.NumberColumn(
+                col,
+                format="%.2f"
+            )
+            for col in metric_columns.keys()
+        }
+    )
+
+    # Download hasil rekap ke Excel
+    import io
+
+    output = io.BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        rekap_ts.to_excel(
+            writer,
+            index=False,
+            sheet_name="Rekap Per TS"
+        )
+
+    st.download_button(
+        label="📥 Download Rekap Per TS",
+        data=output.getvalue(),
+        file_name="Rekap_Hasil_Per_Training_Support.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
