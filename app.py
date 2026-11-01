@@ -158,7 +158,51 @@ if df is not None:
     # ==========================================
     # DASHBOARD ANALYTICS
     # ==========================================
+# =========================================================
+# TOP 3 RANKING PERFORMANCE TRAINING SUPPORT
+# =========================================================
 
+st.divider()
+st.subheader("🏆 Ranking Performance Training Support")
+
+ranking_metrics = {
+    "Peringkat NPS Tertinggi": "Rata-rata NPS",
+    "Peringkat UBPP Penyelenggaraan Tertinggi": "Rata-rata UBPP Penyelenggaraan",
+    "Peringkat Completion Rate LIM 1 Tertinggi": "Rata-rata % Completion Rate LIM 1",
+}
+
+for title, metric_col in ranking_metrics.items():
+
+    st.markdown(f"### {title}")
+
+    ranking_df = rekap_ts[
+        ["Training Support", "Jumlah Event", metric_col]
+    ].copy()
+
+    ranking_df = ranking_df.dropna(subset=[metric_col])
+
+    ranking_df = ranking_df.sort_values(
+        by=metric_col,
+        ascending=False
+    ).reset_index(drop=True)
+
+    ranking_df.insert(
+        0,
+        "Peringkat",
+        ranking_df[metric_col].rank(
+            method="min",
+            ascending=False
+        ).astype(int)
+    )
+
+    if ranking_df.empty:
+        st.info("Belum ada data untuk indikator ini.")
+    else:
+        st.dataframe(
+            ranking_df,
+            use_container_width=True,
+            hide_index=True
+        )
     st.divider()
     st.header("TRAINING PERFORMANCE ANALYTICS")
 
