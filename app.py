@@ -154,7 +154,174 @@ if df is not None:
     df_ts = df_ts.drop_duplicates(
         subset=["Event ID", "Training Support"]
     )
+# =========================================================
+# REKAP PERFORMANCE TCU AREA
+# =========================================================
 
+# Mapping nama area dan kolom Master Data
+area_list = [
+    "TCU Area 1 Jakarta",
+    "TCU Area 2 Bandung",
+    "TCU Area 4 Makassar"
+]
+
+# Pisahkan Provider jika satu event memiliki beberapa TCU Area
+df_area = df_master.copy()
+
+df_area["Provider"] = (
+    df_area["Provider"]
+    .fillna("")
+    .astype(str)
+    .str.split(",")
+)
+
+df_area = df_area.explode("Provider")
+df_area["Provider"] = df_area["Provider"].str.strip()
+
+df_area = df_area[
+    df_area["Provider"].isin(area_list)
+].copy()
+
+
+# Fungsi membuat rekap rata-rata per TCU Area
+def buat_rekap_area(metric_columns):
+
+    kolom_dibutuhkan = ["Event ID", "Provider"] + list(
+        metric_columns.values()
+    )
+
+    data = df_area[kolom_dibutuhkan].copy()
+
+    # Konversi indikator menjadi numerik
+    for kolom in metric_columns.values():
+        data[kolom] = pd.to_numeric(
+            data[kolom].astype(str)
+            .str.replace("%", "", regex=False)
+            .str.replace(",", ".", regex=False),
+            errors="coerce"
+        )
+
+    # Satu event dihitung satu kali untuk setiap area
+    data = data.drop_duplicates(
+        subset=["Event ID", "Provider"]
+    )
+
+    # Hitung rata-rata setiap indikator
+    hasil = (
+        data.groupby("Provider")
+        .agg(
+            **{
+                nama: (kolom, "mean")
+                for nama, kolom in metric_columns.items()
+            }
+        )
+        .reindex(area_list)
+        .reset_index()
+    )
+
+    hasil = hasil.rename(
+        columns={"Provider": "TCU Area"}
+    )
+
+    return hasil
+
+
+# =========================================================
+# MAPPING COMPLETION RATE LIM 1
+# =========================================================
+
+completion_metrics = {
+    "Rata-rata % Completion Rate LIM 1":
+        "Completion Rate Lim 1",
+
+    "Rata-rata % Completion Rate (Pretest)":
+        "Lim 2 Completion Rate Pre Test",
+
+    "Rata-rata % Completion Rate (Postest)":
+        "Lim 2 Completion Rate Post Test",
+
+    "Rata-rata % Completion Rate Learner After":
+        "Lim 3 Completion Learner After",
+
+    "Rata-rata % Completion Rate SPV After":
+        "Lim 3 Completion Supervisor After"
+}
+
+
+# =========================================================
+# MAPPING SCORE LIM 1
+# =========================================================
+
+score_metrics = {
+    "Rata-rata NET PROMOTE SCORE (NPS)":
+        "lim 1 Net Promote Score",
+
+    "Rata-rata FINAL SCORE LIM 1":
+        "Lim 1 Final Score",
+
+    "Rata-rata UBPP PENYELENGGARAAN":
+        "Lim 1 UBPP Penyelenggaraan",
+
+    "Rata-rata UBPP SARANA":
+        "Lim 1 UBPP Sarana",
+
+    "Rata-rata CUSTOMER SATISFACTION":
+        "Lim 1 Customer Satisfaction"
+}
+
+
+# =========================================================
+# TAMPILAN 2 TAB
+# =========================================================
+
+tab_completion, tab_score = st.tabs([
+    "COMPLETION RATE LIM 1",
+    "SCORE LIM 1"
+])
+
+
+with tab_completion:
+
+    st.markdown("### COMPLETION RATE LIM 1")
+
+    rekap_completion = buat_rekap_area(
+        completion_metrics
+    )
+
+    st.dataframe(
+        rekap_completion,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            col: st.column_config.NumberColumn(
+                col,
+                format="%.2f"
+            )
+            for col in completion_metrics.keys()
+        }
+    )
+
+
+with tab_score:
+
+    st.markdown("### SCORE LIM 1")
+
+    rekap_score = buat_rekap_area(
+        score_metrics
+    )
+
+    st.dataframe(
+        rekap_score,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            col: st.column_config.NumberColumn(
+                col,
+                format="%.2f"
+            )
+            for col in score_metrics.keys()
+        }
+    )
 # =========================================================
 # REKAP RATA-RATA HASIL PER TRAINING SUPPORT
 # =========================================================
