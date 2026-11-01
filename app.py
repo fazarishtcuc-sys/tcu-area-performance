@@ -1,39 +1,69 @@
 import streamlit as st
 import pandas as pd
 
-uploaded_file = st.file_uploader(
-    "Upload Master Data",
-    type=["xlsx"]
+from modules.data_source import (
+    load_master_data,
+    get_sync_time
 )
 
-if uploaded_file:
-    df = pd.read_excel(uploaded_file)
-
-    st.success("Master Data berhasil dibaca")
-    st.write(f"Jumlah baris: {len(df)}")
-    st.dataframe(df.head())
-
+# Konfigurasi halaman harus paling awal
 st.set_page_config(
     page_title="TCU Area Performance",
     page_icon="📊",
     layout="wide"
 )
 
+# Judul dashboard
 st.title("TCU Area Performance")
 st.caption("Training Performance Analytics Dashboard")
 
+# Inisialisasi session state
+if "master_df" not in st.session_state:
+    st.session_state.master_df = None
+
+if "sync_time" not in st.session_state:
+    st.session_state.sync_time = None
+
+# Sidebar
 st.sidebar.header("Data Control")
 
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Master Data",
+    type=["xlsx"],
+    key="master_upload"
+)
+
+# Tombol refresh
 if st.sidebar.button("Refresh Master Data"):
-    st.cache_data.clear()
+    st.session_state.master_df = None
+    st.session_state.sync_time = None
     st.rerun()
 
-try:
-    with st.spinner("Mengambil Master Data..."):
-        df = load_master_data()
+# Proses upload
+if uploaded_file is not None:
+
+    try:
+        with st.spinner("Membaca Master Data..."):
+
+            df = load_master_data(uploaded_file)
+
+            st.session_state.master_df = df
+            st.session_state.sync_time = get_sync_time()
+
+        st.sidebar.success("Master Data berhasil dimuat.")
+
+    except Exception as e:
+        st.error("Gagal membaca Master Data.")
+        st.exception(e)
+
+# Menampilkan dashboard
+df = st.session_state.master_df
+
+if df is not None:
 
     st.success("Master Data berhasil dimuat.")
 
+    # KPI
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
@@ -53,9 +83,10 @@ try:
     )
 
     st.caption(
-        f"Terakhir dimuat: {get_sync_time()}"
+        f"Terakhir dimuat: {st.session_state.sync_time}"
     )
 
+    # Preview data
     st.subheader("Preview Master Data")
 
     st.dataframe(
@@ -64,18 +95,23 @@ try:
         hide_index=True
     )
 
+    # Struktur kolom
     st.subheader("Struktur Kolom")
 
+    column_info = pd.DataFrame({
+        "Nama Kolom": df.columns,
+        "Tipe Data": df.dtypes.astype(str).values,
+        "Jumlah Data Terisi": df.notna().sum().values
+    })
+
     st.dataframe(
-        df.dtypes.astype(str)
-        .rename("Tipe Data")
-        .reset_index()
-        .rename(columns={"index": "Nama Kolom"}),
+        column_info,
         use_container_width=True,
         hide_index=True
     )
 
-except Exception as e:
-    st.error("Gagal mengambil Master Data.")
-    st.exception(e)
+else:
 
+    st.info(
+        "Silakan upload file Master Data Excel melalui menu Data Control."
+    )
