@@ -285,8 +285,13 @@ with tab_completion:
     st.markdown("### COMPLETION RATE LIM 1")
 
     rekap_completion = buat_rekap_area(
-        completion_metrics
-    )
+    completion_metrics
+)
+
+rekap_completion = tambah_total_area(
+    rekap_completion,
+    completion_metrics
+)
 
     st.dataframe(
         rekap_completion,
@@ -307,8 +312,13 @@ with tab_score:
     st.markdown("### SCORE LIM 1")
 
     rekap_score = buat_rekap_area(
-        score_metrics
-    )
+    score_metrics
+)
+
+rekap_score = tambah_total_area(
+    rekap_score,
+    score_metrics
+)
 
     st.dataframe(
         rekap_score,
@@ -322,6 +332,19 @@ with tab_score:
             for col in score_metrics.keys()
         }
     )
+    def tambah_total_area(data, metric_columns):
+
+    total = {"TCU Area": "TOTAL TCU AREA"}
+
+    for nama in metric_columns.keys():
+        total[nama] = data[nama].mean()
+
+    hasil = pd.concat(
+        [data, pd.DataFrame([total])],
+        ignore_index=True
+    )
+
+    return hasil
 # =========================================================
 # REKAP RATA-RATA HASIL PER TRAINING SUPPORT
 # =========================================================
