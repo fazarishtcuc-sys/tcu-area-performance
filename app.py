@@ -68,6 +68,67 @@ if df is not None:
 
     df_master = df.copy()
 
+    # ==========================================
+    # FILTER RENTANG WAKTU
+    # ==========================================
+
+    st.subheader("Filter Periode")
+
+    date_column = "Event Date Start"
+
+    if date_column in df_master.columns:
+
+        df_master[date_column] = pd.to_datetime(
+            df_master[date_column],
+            errors="coerce",
+            dayfirst=True
+        )
+
+        min_date = df_master[date_column].min()
+        max_date = df_master[date_column].max()
+
+        col_date1, col_date2 = st.columns(2)
+
+        with col_date1:
+            start_date = st.date_input(
+                "Tanggal Mulai",
+                value=min_date.date() if pd.notna(min_date) else None,
+                min_value=min_date.date() if pd.notna(min_date) else None,
+                max_value=max_date.date() if pd.notna(max_date) else None,
+                format="DD/MM/YYYY"
+            )
+
+        with col_date2:
+            end_date = st.date_input(
+                "Tanggal Akhir",
+                value=max_date.date() if pd.notna(max_date) else None,
+                min_value=min_date.date() if pd.notna(min_date) else None,
+                max_value=max_date.date() if pd.notna(max_date) else None,
+                format="DD/MM/YYYY"
+            )
+
+        if start_date and end_date:
+
+            if start_date <= end_date:
+
+                df_master = df_master[
+                    (df_master[date_column] >= pd.Timestamp(start_date))
+                    &
+                    (df_master[date_column] < pd.Timestamp(end_date) + pd.Timedelta(days=1))
+                ].copy()
+
+                st.caption(
+                    f"Periode: {start_date.strftime('%d %B %Y')} "
+                    f"s.d. {end_date.strftime('%d %B %Y')}"
+                )
+
+            else:
+                st.error("Tanggal mulai tidak boleh melebihi tanggal akhir.")
+                st.stop()
+
+    else:
+        st.warning("Kolom Event Date Start tidak ditemukan.")
+
     # Pecah nama TS berdasarkan koma
     df_ts = df_master.copy()
 
